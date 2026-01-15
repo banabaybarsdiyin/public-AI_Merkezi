@@ -1,56 +1,40 @@
-// Gemini API ile YZ Danışma Hattı entegrasyonu (Node.js Express örneği)
-const GEMINI_API_KEY = 'AIzaSyAeXNBGQtRJRQQZiHLuC660JkBBc-rv3Ko';
-const express = require('express');
-const fetch = require('node-fetch');
-const router = express.Router();
+<!-- ...existing HTML ve CSS kodların... -->
+<script>
+    // Frontend JavaScript kodu (örnek)
+    async function sendMessage() {
+        const input = document.getElementById('userInput');
+        const messagesDiv = document.getElementById('messages');
+        const text = input.value.trim();
 
-// Kendi Gemini API anahtarını ve endpointini buraya ekle
-const GEMINI_API_KEY = 'AIzaSyAeXNBGQtRJRQQZiHLuC660JkBBc-rv3Ko';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + GEMINI_API_KEY;
+        if (!text) return;
 
-router.post('/', async (req, res) => {
-    const userMessage = req.body.message;
-    if (!userMessage) {
-        return res.status(400).json({ error: 'Mesaj boş olamaz.' });
+        messagesDiv.innerHTML += `<div class="message user-msg">${text}</div>`;
+        input.value = '';
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        const loadingId = 'loading-' + Date.now();
+        messagesDiv.innerHTML += `<div class="message bot-msg" id="${loadingId}">Arşivler taranıyor...</div>`;
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            });
+            const data = await response.json();
+            document.getElementById(loadingId).remove();
+            if (data.reply) {
+                messagesDiv.innerHTML += `<div class="message bot-msg">${data.reply}</div>`;
+            } else if (data.error) {
+                messagesDiv.innerHTML += `<div class="message bot-msg">${data.error}</div>`;
+            } else {
+                messagesDiv.innerHTML += `<div class="message bot-msg">Cevap alınamadı. Lütfen tekrar deneyin.</div>`;
+            }
+        } catch (error) {
+            document.getElementById(loadingId).innerText = "Sunucuya ulaşılamıyor. Lütfen bağlantınızı kontrol edin.";
+        }
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
-
-    try {
-        // Gemini API'ye istek gönder
-        const geminiResponse = await fetch(GEMINI_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: userMessage }] }]
-            })
-        });
-        const data = await geminiResponse.json();
-        // Gemini cevabını al
-        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Cevap alınamadı.';
-        res.json({ reply });
-    } catch (error) {
-        res.status(500).json({ error: 'Gemini API hatası: ' + error.message });
-    }
-});
-
-module.exports = router;
-
-// Frontend JavaScript kodu (örnek)
-try {
-    const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
-    });
-    const data = await response.json();
-    document.getElementById(loadingId).remove();
-    if (data.reply) {
-        messagesDiv.innerHTML += `<div class="message bot-msg">${data.reply}</div>`;
-    } else if (data.error) {
-        messagesDiv.innerHTML += `<div class="message bot-msg">${data.error}</div>`;
-    } else {
-        messagesDiv.innerHTML += `<div class="message bot-msg">Cevap alınamadı. Lütfen tekrar deneyin.</div>`;
-    }
-} catch (error) {
-    document.getElementById(loadingId).innerText = "Sunucuya ulaşılamıyor. Lütfen bağlantınızı kontrol edin.";
-}
-messagesDiv.scrollTop = messagesDiv.scrollHeight;
+</script>
+<!-- ...existing HTML kodların devamı... -->
