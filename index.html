@@ -337,72 +337,143 @@ düzenleyen yaşayan bir arşiv.
 
 <script>
 (function(){
-const cards=[...document.querySelectorAll('.card')];
-const searchInput=document.getElementById('searchInput');
-const priceChecks=[...document.querySelectorAll('#priceChecks input')];
-const tagChecks=[...document.querySelectorAll('#tagChecks input')];
-const resultCount=document.getElementById('resultCount');
-const clearBtn=document.getElementById('clearBtn');
+  const cards = [...document.querySelectorAll('.card')];
+  const sections = [...document.querySelectorAll('.category-section')];
 
-const TAGS={student:"🎓 Öğrenci",individual:"👤 Bireysel",pro:"💼 Pro",fast:"⚡ Hızlı",deep:"🧠 Derin",beta:"🧪 Beta"};
+  const searchInput = document.getElementById('searchInput');
+  const priceChecks = [...document.querySelectorAll('#priceChecks input')];
+  const tagChecks = [...document.querySelectorAll('#tagChecks input')];
+  const resultCount = document.getElementById('resultCount');
+  const clearBtn = document.getElementById('clearBtn');
 
-cards.forEach(card=>{
-if(card.querySelector('.tag-row'))return;
-const row=document.createElement('div');row.className='tag-row';
-(card.dataset.tags||'').split(',').forEach(t=>{
-if(!t)return;
-const s=document.createElement('span');
-s.className='tag';s.textContent=TAGS[t]||t;
-row.appendChild(s);
-});
-card.querySelector('.card-header').after(row);
-});
+  // Tag rozetlerini otomatik bas (istersen kaldırabilirsin)
+  const TAGS = {
+    student:"🎓 Öğrenci",
+    individual:"👤 Bireysel",
+    pro:"💼 Pro",
+    fast:"⚡ Hızlı",
+    deep:"🧠 Derin",
+    beta:"🧪 Beta"
+  };
 
-function applyFilters(){
-let shown=0;
-cards.forEach(card=>{
-const q=searchInput.value.toLowerCase();
-const priceOK=!priceChecks.some(i=>i.checked)||priceChecks.filter(i=>i.checked).some(i=>i.value===card.dataset.price);
-const tags=(card.dataset.tags||'').split(',');
-const tagOK=!tagChecks.some(i=>i.checked)||tagChecks.filter(i=>i.checked).every(i=>tags.includes(i.value));
-const text=(card.textContent||'').toLowerCase();
-const show=(!q||text.includes(q))&&priceOK&&tagOK;
-card.classList.toggle('hidden-by-filter',!show);
-if(show)shown++;
-});
-resultCount.textContent=`${shown} / ${cards.length}`;
+  cards.forEach(card=>{
+    if(card.querySelector('.tag-row')) return;
+    const row = document.createElement('div');
+    row.className = 'tag-row';
+    (card.dataset.tags || '').split(',').map(x=>x.trim()).filter(Boolean).forEach(t=>{
+      const s = document.createElement('span');
+      s.className = 'tag';
+      s.textContent = TAGS[t] || t;
+      row.appendChild(s);
+    });
+    const header = card.querySelector('.card-header');
+    if (header) header.after(row);
+  });
 
-document.querySelectorAll('.category-section').forEach(sec=>{
-const visible=sec.querySelectorAll('.card:not(.hidden-by-filter)').length;
-sec.dataset.empty=visible===0;
-const body=sec.querySelector('.category-body');
-if(body&&sec.dataset.collapsed!=="true"){
-body.style.maxHeight=body.scrollHeight+"px";
-}
-});
-}
+  function getCheckedValues(inputs){
+    return inputs.filter(i=>i.checked).map(i=>i.value);
+  }
 
-[searchInput,...priceChecks,...tagChecks].forEach(i=>i.addEventListener('input',applyFilters));
-clearBtn.onclick=()=>{
-searchInput.value="";
-priceChecks.forEach(i=>i.checked=false);
-tagChecks.forEach(i=>i.checked=false);
-applyFilters();
-};
+  // ✅ Kategori accordion durumunu (data-collapsed) gerçek max-height'e çevirir
+  function syncAccordionHeights(){
+    sections.forEach(sec=>{
+      const body = sec.querySelector('.category-body');
+      if (!body) return;
 
-document.querySelectorAll('.category-header').forEach(h=>{
-h.onclick=()=>{
-const sec=h.parentElement;
-const body=sec.querySelector('.category-body');
-const closed=sec.dataset.collapsed==="true";
-sec.dataset.collapsed=closed?"false":"true";
-body.style.maxHeight=closed?body.scrollHeight+"px":"0px";
-};
-});
+      if (sec.dataset.collapsed === "true") {
+        body.style.maxHeight = "0px";
+      } else {
+        body.style.maxHeight = body.scrollHeight + "px";
+      }
+    });
+  }
 
-applyFilters();
+  function applyFilters(){
+    const q = (searchInput?.value || '').toLowerCase().trim();
+    const selectedPrices = getCheckedValues(priceChecks); // OR
+    const selectedTags = getCheckedValues(tagChecks);     // AND
+
+    let shown = 0;
+
+    cards.forEach(card=>{
+      const price = card.dataset.price || '';
+      const tags = (card.dataset.tags || '').split(',').map(x=>x.trim()).filter(Boolean);
+
+      const text = (card.textContent || '').toLowerCase();
+
+      const searchOK = !q || text.includes(q);
+      const priceOK  = selectedPrices.length === 0 || selectedPrices.includes(price);
+      const tagsOK   = selectedTags.length === 0 || selectedTags.every(t => tags.includes(t));
+
+      const visible = searchOK && priceOK && tagsOK;
+
+      card.classList.toggle('hidden-by-filter', !visible);
+      if (visible) shown++;
+    });
+
+    if (resultCount) resultCount.textContent = `${shown} / ${cards.length}`;
+
+    // Kategori bazlı boşluk işaretle + açık olanların yüksekliğini güncelle
+    sections.forEach(sec=>{
+      const visibleCards = sec.querySelectorAll('.card:not(.hidden-by-filter)').length;
+      sec.dataset.empty = (visibleCards === 0) ? "true" : "false";
+
+      const body = sec.querySelector('.category-body');
+      if (!body) return;
+
+      if (sec.dataset.collapsed !== "true") {
+        body.style.maxHeight = body.scrollHeight + "px";
+      }
+    });
+  }
+
+  function clearAll(){
+    if (searchInput) searchInput.value = '';
+    priceChecks.forEach(i=>i.checked=false);
+    tagChecks.forEach(i=>i.checked=false);
+    applyFilters();
+  }
+
+  // ✅ Accordion click
+  document.querySelectorAll('.category-header').forEach(header=>{
+    header.addEventListener('click', ()=>{
+      const sec = header.closest('.category-section');
+      if (!sec) return;
+
+      const body = sec.querySelector('.category-body');
+      if (!body) return;
+
+      const closed = (sec.dataset.collapsed === "true");
+      sec.dataset.collapsed = closed ? "false" : "true";
+
+      body.style.maxHeight = closed ? (body.scrollHeight + "px") : "0px";
+    });
+  });
+
+  // Filtre eventleri
+  if (searchInput) searchInput.addEventListener('input', applyFilters);
+  [...priceChecks, ...tagChecks].forEach(i=>i.addEventListener('change', applyFilters));
+  if (clearBtn) clearBtn.addEventListener('click', clearAll);
+
+  // ✅ İlk yükleme: HTML'de verdiğin data-collapsed durumunu uygula
+  syncAccordionHeights();
+
+  // ✅ İlk yükleme: filtre sayacı / empty state
+  applyFilters();
+
+  // ✅ Resize: sadece açık olanların yüksekliklerini düzelt
+  window.addEventListener('resize', ()=>{
+    sections.forEach(sec=>{
+      if (sec.dataset.collapsed === "true") return;
+      const body = sec.querySelector('.category-body');
+      if (body) body.style.maxHeight = body.scrollHeight + "px";
+    });
+  });
+
 })();
 </script>
 
+
 </body>
 </html>
+
