@@ -1,208 +1,35 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Balamir'in Yapay Zeka Hayratı</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800;900&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0f172a; /* Arka Plan: Derin Lacivert */
-            color: #f1f5f9;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 40px 20px;
-            margin: 0;
-            min-height: 100vh;
-        }
+// Gemini API ile YZ Danışma Hattı entegrasyonu (Node.js Express örneği)
+const GEMINI_API_KEY = 'AIzaSyAeXNBGQtRJRQQZiHLuC660JkBBc-rv3Ko';
+const express = require('express');
+const fetch = require('node-fetch');
+const router = express.Router();
 
-        /* Başlık ve Alıntı */
-        header {
-            text-align: center;
-            max-width: 900px;
-            margin-bottom: 60px;
-        }
+// Kendi Gemini API anahtarını ve endpointini buraya ekle
+const GEMINI_API_KEY = 'AIzaSyAeXNBGQtRJRQQZiHLuC660JkBBc-rv3Ko';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + GEMINI_API_KEY;
 
-        h1 {
-            color: #60a5fa; /* Başlık: Göz alıcı Mavi */
-            font-size: 3rem;
-            margin: 0 0 20px 0;
-            font-weight: 900; /* Ekstra Kalın */
-            letter-spacing: -1px;
-            text-shadow: 0 0 25px rgba(59, 130, 246, 0.3); /* Mavi parlama */
-        }
+router.post('/', async (req, res) => {
+    const userMessage = req.body.message;
+    if (!userMessage) {
+        return res.status(400).json({ error: 'Mesaj boş olamaz.' });
+    }
 
-        .quote-box {
-            background: rgba(30, 41, 59, 0.7);
-            border-left: 6px solid #3b82f6; /* Mavi Çizgi */
-            padding: 25px;
-            border-radius: 8px;
-            font-size: 1.15rem;
-            line-height: 1.6;
-            color: #e2e8f0;
-            font-weight: 500;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        }
+    try {
+        // Gemini API'ye istek gönder
+        const geminiResponse = await fetch(GEMINI_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: userMessage }] }]
+            })
+        });
+        const data = await geminiResponse.json();
+        // Gemini cevabını al
+        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Cevap alınamadı.';
+        res.json({ reply });
+    } catch (error) {
+        res.status(500).json({ error: 'Gemini API hatası: ' + error.message });
+    }
+});
 
-        .highlight {
-            color: #38bdf8; /* Vurgular Açık Mavi */
-            font-weight: 800;
-        }
-
-        /* Konteyner */
-        .container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-            gap: 30px;
-            width: 100%;
-            max-width: 1200px;
-        }
-
-        /* Kategori Başlıkları */
-        .category-header {
-            grid-column: 1 / -1;
-            font-size: 1rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            color: #94a3b8; /* Gri-Mavi */
-            border-bottom: 2px solid #1e293b;
-            padding-bottom: 10px;
-            margin-top: 30px;
-            margin-bottom: 15px;
-        }
-
-        /* Kart Yapısı */
-        .card {
-            background-color: #ffffff; /* Kartlar BEYAZ (En net okuma için) */
-            border-radius: 16px;
-            padding: 30px;
-            display: flex;
-            flex-direction: column;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            position: relative;
-            overflow: hidden;
-            border-top: 6px solid transparent; /* Üst çizgi gizli */
-        }
-
-        .card:hover {
-            transform: translateY(-7px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            border-top: 6px solid #2563eb; /* Hoverda Mavi Çizgi Belirir */
-        }
-
-        /* Kart İçeriği */
-        .card-title {
-            font-size: 1.4rem;
-            font-weight: 900; /* Kalın Başlık */
-            color: #0f172a; /* Koyu Lacivert (Siyah yerine) */
-            margin: 0 0 15px 0;
-            line-height: 1.2;
-        }
-
-        .card-desc {
-            font-size: 1rem;
-            font-weight: 600; /* Kalınlaştırılmış Açıklama */
-            color: #475569; /* Koyu Gri */
-            line-height: 1.6;
-            margin-bottom: 30px;
-            flex-grow: 1;
-        }
-
-        /* Buton Tasarımı */
-        .ai-link {
-            display: block;
-            background-color: #2563eb; /* Güven Veren Mavi */
-            color: #ffffff;
-            text-decoration: none;
-            padding: 16px;
-            border-radius: 10px;
-            text-align: center;
-            font-weight: 800;
-            transition: all 0.2s;
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
-        }
-
-        .ai-link:hover {
-            background-color: #1d4ed8; /* Hoverda koyu mavi */
-            transform: scale(1.02);
-        }
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1>Balamir'in Yapay Zeka Hayratı</h1>
-        <div class="quote-box">
-            "ChatGPT altyapısını kullanan ve tamamen ücretsiz yapay zeka araçlarını işlevlerine göre sınıflandıran bu platform; Balamir'in emekleriyle, <span class="highlight">yüce Türk Gençliğine</span> sunulmuş <span class="highlight">vatani bir hizmettir.</span>"
-        </div>
-    </header>
-
-    <div class="container">
-
-        <div class="category-header">Genel Asistanlar</div>
-
-        <div class="card">
-            <div class="card-title">GPT-4 Destekli Canlı Araştırma</div>
-            <div class="card-desc">İnternete bağlı güncel veri erişimi, kaynaklı cevaplar ve ücretsiz görsel oluşturma yeteneği.</div>
-            <a href="https://copilot.microsoft.com/" target="_blank" class="ai-link">Microsoft Copilot</a>
-        </div>
-
-        <div class="card">
-            <div class="card-title">İnsani Dil Yeteneği & Analiz</div>
-            <div class="card-desc">Akademik deneme yazımı, kod mantığı kurma ve robotik olmayan, akıcı bir dil yapısı.</div>
-            <a href="https://claude.ai/" target="_blank" class="ai-link">Claude 3.5 Sonnet</a>
-        </div>
-
-        <div class="card">
-            <div class="card-title">Açık Kaynaklı Model Testi</div>
-            <div class="card-desc">Llama, Mistral gibi farklı yapay zeka beyinlerini ücretsiz deneyimleme ve kıyaslama imkanı.</div>
-            <a href="https://huggingface.co/chat/" target="_blank" class="ai-link">Hugging Face Chat</a>
-        </div>
-
-        <div class="category-header">Akademik & Bilimsel</div>
-
-        <div class="card">
-            <div class="card-title">Akademik Literatür Tarama</div>
-            <div class="card-desc">Halüsinasyon riski olmayan, her cümleyi dipnotla doğrulayan akademik arama motoru.</div>
-            <a href="https://www.perplexity.ai/" target="_blank" class="ai-link">Perplexity AI</a>
-        </div>
-
-        <div class="card">
-            <div class="card-title">Kişisel Ders Asistanı</div>
-            <div class="card-desc">Yüklenen PDF kitap ve notları analiz eder, özet çıkarır ve soruları cevaplar.</div>
-            <a href="https://notebooklm.google.com/" target="_blank" class="ai-link">Google NotebookLM</a>
-        </div>
-
-        <div class="card">
-            <div class="card-title">Bilimsel Makale Konsensüsü</div>
-            <div class="card-desc">Sorulara bloglardan değil, sadece hakemli bilimsel makalelerden kanıtlarla yanıt verir.</div>
-            <a href="https://consensus.app/" target="_blank" class="ai-link">Consensus</a>
-        </div>
-
-        <div class="category-header">Yazılım & Üretim</div>
-
-        <div class="card">
-            <div class="card-title">Profesyonel Kodlama Editörü</div>
-            <div class="card-desc">Dünyanın en gelişmiş kod düzenleyicisi, eklenti desteği ve entegre terminal yapısı.</div>
-            <a href="vscode://" class="ai-link">VS Code'u Aç</a>
-        </div>
-
-        <div class="card">
-            <div class="card-title">AI Destekli Yazılım Geliştirme</div>
-            <div class="card-desc">GitHub Copilot ile kod tamamlama ve öğrenci avantajlarına ücretsiz erişim paketi.</div>
-            <a href="https://education.github.com/pack" target="_blank" class="ai-link">GitHub Student Pack</a>
-        </div>
-
-        <div class="card">
-            <div class="card-title">Metinden Görsel Tasarım</div>
-            <div class="card-desc">Sunum, proje ve sosyal medya içerikleri için yüksek kaliteli görsel oluşturma.</div>
-            <a href="https://www.bing.com/images/create" target="_blank" class="ai-link">DALL-E 3 (Designer)</a>
-        </div>
-
-    </div>
-
-</body>
-</html>
+module.exports = router;
